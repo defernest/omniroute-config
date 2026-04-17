@@ -1,0 +1,7 @@
+.git
+.env
+.env.*
+README.md
+docker-compose.yml
+Caddyfile
+*.log

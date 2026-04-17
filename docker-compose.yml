@@ -14,15 +14,17 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
-    deploy:
-      resources:
-        limits:
-          memory: 100M
+    mem_limit: 100m
     networks:
       - internal_network
   omniroute-prod:
     container_name: omniroute-prod
-    image: diegosouzapw/omniroute:3.6.6
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        OMNIROUTE_IMAGE: diegosouzapw/omniroute:3.6.6
+    image: omniroute-custom:3.6.6
     restart: unless-stopped
     environment:
       - NODE_ENV=production
