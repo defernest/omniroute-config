@@ -12,8 +12,8 @@ services:
       - no-new-privileges:true
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
+      - ./caddy_data:/data
+      - ./caddy_config:/config
     mem_limit: 100m
     networks:
       - internal_network
@@ -131,7 +131,5 @@ networks:
     driver: bridge
 
 volumes:
-  caddy_data:
-  caddy_config:
   omniroute-prod-data:
   redis-data:

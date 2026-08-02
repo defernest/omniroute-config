@@ -5,6 +5,7 @@ TEMPLATE_FILE="Caddyfile.template"
 GENERATED_FILE="Caddyfile"
 PLACEHOLDER="<public_server_ip>"
 OMNIROUTE_PROFILE="${OMNIROUTE_PROFILE:-cli}"
+TLS_MODE="${TLS_MODE:-acme}"
 
 if ! command -v docker >/dev/null 2>&1; then
   echo "Ошибка: нужен docker" >&2
@@ -23,11 +24,6 @@ fi
 
 if [ ! -f "$TEMPLATE_FILE" ]; then
   echo "Ошибка: не найден шаблон $TEMPLATE_FILE" >&2
-  exit 1
-fi
-
-if ! grep -q "$PLACEHOLDER" "$TEMPLATE_FILE"; then
-  echo "Ошибка: в $TEMPLATE_FILE нет плейсхолдера $PLACEHOLDER" >&2
   exit 1
 fi
 
@@ -90,17 +86,46 @@ if ! is_valid_ipv4 "$SERVER_IP"; then
   exit 1
 fi
 
-sed "s|$PLACEHOLDER|$SERVER_IP|g" "$TEMPLATE_FILE" > "$GENERATED_FILE"
+mkdir -p ./caddy_data ./caddy_config
+
+case "$TLS_MODE" in
+  acme)
+    GLOBAL_ACME="    cert_issuer acme {\n        dir https://acme-v02.api.letsencrypt.org/directory\n        profile shortlived\n    }"
+    TLS_DIR=""
+    ;;
+  internal)
+    GLOBAL_ACME=""
+    TLS_DIR="    tls internal"
+    ;;
+  custom)
+    GLOBAL_ACME=""
+    TLS_DIR="    tls /data/certs/cert.crt /data/certs/key.key"
+    ;;
+  *)
+    echo "Ошибка: неизвестный TLS_MODE: $TLS_MODE (допустимо: acme, internal, custom)" >&2
+    exit 1
+    ;;
+esac
+
+# Generate Caddyfile from template
+sed \
+  -e "s|$PLACEHOLDER|$SERVER_IP|g" \
+  -e "s|<global_acme_block>|$GLOBAL_ACME|g" \
+  -e "s|<tls_directive>|$TLS_DIR|g" \
+  "$TEMPLATE_FILE" > "$GENERATED_FILE"
 
 echo "Проверка конфигурации Caddy..."
-docker run --rm -v "$(pwd)/$GENERATED_FILE:/etc/caddy/Caddyfile:ro" caddy:2.11-alpine caddy validate --config /etc/caddy/Caddyfile >/dev/null
+docker run --rm \
+  -v "$(pwd)/$GENERATED_FILE:/etc/caddy/Caddyfile:ro" \
+  -v "$(pwd)/caddy_data:/data" \
+  caddy:2.11-alpine caddy validate --config /etc/caddy/Caddyfile >/dev/null
 
 if [ "${DRY_RUN:-0}" = "1" ]; then
   echo "Готово: $GENERATED_FILE создан и валиден (DRY_RUN=1)"
   exit 0
 fi
 
-echo "Запуск OmniRoute (профиль: $OMNIROUTE_PROFILE)..."
+echo "Запуск OmniRoute (профиль: $OMNIROUTE_PROFILE, TLS режим: $TLS_MODE)..."
 docker compose --profile "$OMNIROUTE_PROFILE" up -d
 
 echo ""
@@ -108,3 +133,5 @@ echo "=== OmniRoute успешно развернут ==="
 echo "Панель управления (Dashboard): https://$SERVER_IP:20130"
 echo "API Endpoint:                 https://$SERVER_IP:20131"
 echo "Профиль:                      $OMNIROUTE_PROFILE"
+echo "Режим TLS:                    $TLS_MODE"
+echo "Хранилище сертификатов:       ./caddy_data"

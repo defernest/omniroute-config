@@ -25,6 +25,30 @@ curl -fsSL https://raw.githubusercontent.com/defernest/omniroute-config/main/ins
 
 ---
 
+## 🔒 Настройка TLS и Сохранение Сертификатов
+
+Сертификаты и данные Caddy сохраняются на диске хоста в папке `./caddy_data`, поэтому при перезапусках контейнеров **повторный запрос к ACME / Let's Encrypt не происходит** — используется ранее сохранённый сертификат.
+
+Выбор режима TLS задаётся через переменную `TLS_MODE`:
+
+| Режим `TLS_MODE` | Описание |
+| :--- | :--- |
+| **`acme`** _(по умолчанию)_ | Автоматический сертификат Let's Encrypt для IP. Сохраняется в `./caddy_data` на диске. |
+| **`internal`** | Внутренний CA Caddy (`tls internal`) — без внешних вызовов к ACME, без лимитов и требований к 80/443 порту. |
+| **`custom`** | Использование собственных сертификатов из `./caddy_data/certs/cert.crt` и `key.key`. |
+
+Примеры запуска:
+
+```bash
+# Использовать внутренние сертификаты Caddy (без вызова ACME):
+TLS_MODE=internal ./deploy.sh
+
+# Использовать ACME Let's Encrypt с сохранением в ./caddy_data:
+TLS_MODE=acme ./deploy.sh
+```
+
+---
+
 ## 🛠️ Ручной запуск через deploy.sh
 
 Если репозиторий уже склонирован на сервере:
@@ -33,26 +57,16 @@ curl -fsSL https://raw.githubusercontent.com/defernest/omniroute-config/main/ins
 ./deploy.sh
 ```
 
-Что делает `deploy.sh`:
-- Определяет внешний IP сервера (или запрашивает его при необходимости);
-- Генерирует `Caddyfile` из шаблона `Caddyfile.template`;
-- Валидирует конфиг Caddy в контейнере;
-- Запускает `docker compose --profile "$OMNIROUTE_PROFILE" up -d`.
+### Дополнительные переменные окружения
 
-### Настройка профиля и IP через переменные
-
-Выбор профиля (`cli`, `web` или `base`):
 ```bash
+# Выбор профиля OmniRoute (cli, web, base)
 OMNIROUTE_PROFILE=web ./deploy.sh
-```
 
-Передача внешнего IP вручную (неинтерактивный режим):
-```bash
+# Передача внешнего IP вручную (неинтерактивный режим)
 PUBLIC_SERVER_IP=1.2.3.4 ./deploy.sh
-```
 
-Проверка конфигурации без запуска сервисов (Dry Run):
-```bash
+# Проверка конфигурации без запуска (Dry Run)
 DRY_RUN=1 ./deploy.sh
 ```
 
@@ -60,35 +74,24 @@ DRY_RUN=1 ./deploy.sh
 
 ## 🧩 Профили Docker Compose
 
-В развёртывании используются официальные профили OmniRoute:
-
 | Профиль | Образ | Назначение |
 | :--- | :--- | :--- |
-| **`cli`** _(по умолчанию)_ | `diegosouzapw/omniroute:cli` | Агентские сценарии и встроенные CLI-инструменты (Claude Code, Codex, OpenClaw и др.) |
-| **`web`** | `diegosouzapw/omniroute:web` | Провайдеры с web-cookie (Gemini Web, Claude Web) с предустановленным Chromium/Playwright |
-| **`base`** | `diegosouzapw/omniroute:latest` | Минимальный headless-сервер без дополнительного окружения |
-
-Пример ручного запуска через `docker compose`:
-
-```bash
-# Запуск с CLI-профилем
-docker compose --profile cli up -d
-
-# Запуск с WEB-профилем
-docker compose --profile web up -d
-```
+| **`cli`** _(по умолчанию)_ | `diegosouzapw/omniroute:latest` | Агентские сценарии и встроенные CLI-инструменты |
+| **`web`** | `diegosouzapw/omniroute:web` | Провайдеры с web-cookie (Gemini Web, Claude Web) с Chromium |
+| **`base`** | `diegosouzapw/omniroute:latest` | Минимальный headless-сервер |
 
 ---
 
-## 🌐 Порты
+## 🌐 Порты и Файловая Система
 
 - `80` — HTTP (ACME challenge для Let's Encrypt)
 - `443` — HTTPS
 - `20130` — HTTPS прокси на Панель управления OmniRoute Dashboard (`omniroute-prod:20128`)
 - `20131` — HTTPS прокси на OmniRoute API (`omniroute-prod:20129`)
 
-## 💾 Хранение данных
+### Данные
 
-- `omniroute-prod-data` — хранилище данных приложения (`/app/data`)
-- `redis-data` — данные Redis (rate limiter backend & cache)
-- `caddy_data`, `caddy_config` — сертификаты и конфигурация Caddy TLS
+- `./caddy_data` — персистентное хранилище сертификатов Caddy на хосте
+- `./caddy_config` — конфигурация Caddy на хосте
+- `omniroute-prod-data` — данные OmniRoute (`/app/data`)
+- `redis-data` — данные Redis (rate limiter & cache)
