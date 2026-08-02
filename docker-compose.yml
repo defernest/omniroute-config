@@ -4,10 +4,8 @@ services:
     container_name: caddy_proxy
     restart: unless-stopped
     ports:
-      - "80:80"
-      - "443:443"
-      - "20130:20130"
-      - "20131:20131"
+      - "127.0.0.1:20130:20130"
+      - "127.0.0.1:20131:20131"
     security_opt:
       - no-new-privileges:true
     volumes:
