@@ -33,9 +33,9 @@ services:
       timeout: 5s
       retries: 3
 
-  # Profile: cli (Official image with bundled CLI tools)
+  # Profile: cli (Official image with CLI integration support)
   omniroute-cli:
-    image: diegosouzapw/omniroute:${OMNIROUTE_TAG:-cli}
+    image: diegosouzapw/omniroute:${OMNIROUTE_TAG:-latest}
     container_name: omniroute-prod
     restart: unless-stopped
     profiles:
@@ -63,9 +63,12 @@ services:
       retries: 3
       start_period: 15s
 
-  # Profile: web (Official image with Chromium/Playwright for web-cookie providers)
+  # Profile: web (Built from official OmniRoute repo runner-web stage for Chromium/Playwright)
   omniroute-web:
-    image: diegosouzapw/omniroute:${OMNIROUTE_TAG:-web}
+    build:
+      context: https://github.com/diegosouzapw/OmniRoute.git#main
+      target: runner-web
+    image: omniroute:web
     container_name: omniroute-prod
     restart: unless-stopped
     profiles:
