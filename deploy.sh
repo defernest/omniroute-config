@@ -4,6 +4,7 @@ set -eu
 TEMPLATE_FILE="Caddyfile.template"
 GENERATED_FILE="Caddyfile"
 PLACEHOLDER="<public_server_ip>"
+OMNIROUTE_PROFILE="${OMNIROUTE_PROFILE:-cli}"
 
 if ! command -v docker >/dev/null 2>&1; then
   echo "Ошибка: нужен docker" >&2
@@ -63,7 +64,12 @@ if [ -z "$SERVER_IP" ]; then
 
   if [ -n "$DETECTED_IP" ]; then
     printf 'Найден внешний IP: %s. Использовать его? [Y/n]: ' "$DETECTED_IP"
-    read -r answer
+    if [ -t 0 ]; then
+      read -r answer
+    else
+      answer="y"
+      echo "y (автовыбор в неинтерактивном режиме)"
+    fi
     case "$answer" in
       ""|y|Y|yes|YES|д|Д|да|ДА)
         SERVER_IP="$DETECTED_IP"
@@ -86,11 +92,19 @@ fi
 
 sed "s|$PLACEHOLDER|$SERVER_IP|g" "$TEMPLATE_FILE" > "$GENERATED_FILE"
 
+echo "Проверка конфигурации Caddy..."
 docker run --rm -v "$(pwd)/$GENERATED_FILE:/etc/caddy/Caddyfile:ro" caddy:2.11-alpine caddy validate --config /etc/caddy/Caddyfile >/dev/null
 
 if [ "${DRY_RUN:-0}" = "1" ]; then
-  echo "Готово: $GENERATED_FILE создан и валиден"
+  echo "Готово: $GENERATED_FILE создан и валиден (DRY_RUN=1)"
   exit 0
 fi
 
-docker compose up -d --build
+echo "Запуск OmniRoute (профиль: $OMNIROUTE_PROFILE)..."
+docker compose --profile "$OMNIROUTE_PROFILE" up -d
+
+echo ""
+echo "=== OmniRoute успешно развернут ==="
+echo "Панель управления (Dashboard): https://$SERVER_IP:20130"
+echo "API Endpoint:                 https://$SERVER_IP:20131"
+echo "Профиль:                      $OMNIROUTE_PROFILE"

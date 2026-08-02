@@ -17,15 +17,29 @@ services:
     mem_limit: 100m
     networks:
       - internal_network
-  omniroute-prod:
-    container_name: omniroute-prod
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        OMNIROUTE_IMAGE: diegosouzapw/omniroute:3.6.6
-    image: omniroute-custom:3.6.6
+
+  redis:
+    image: docker.io/library/redis:7-alpine
+    container_name: omniroute-redis
     restart: unless-stopped
+    command: redis-server --save 60 1 --loglevel warning
+    volumes:
+      - redis-data:/data
+    networks:
+      - internal_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # Profile: cli (Official image with bundled CLI tools)
+  omniroute-cli:
+    image: diegosouzapw/omniroute:${OMNIROUTE_TAG:-cli}
+    container_name: omniroute-prod
+    restart: unless-stopped
+    profiles:
+      - cli
     environment:
       - NODE_ENV=production
       - PORT=${PORT:-20128}
@@ -34,6 +48,7 @@ services:
       - API_HOST=${API_HOST:-0.0.0.0}
       - HOSTNAME=0.0.0.0
       - DATA_DIR=/app/data
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
     expose:
       - "20128"
       - "20129"
@@ -47,10 +62,73 @@ services:
       timeout: 5s
       retries: 3
       start_period: 15s
+
+  # Profile: web (Official image with Chromium/Playwright for web-cookie providers)
+  omniroute-web:
+    image: diegosouzapw/omniroute:${OMNIROUTE_TAG:-web}
+    container_name: omniroute-prod
+    restart: unless-stopped
+    profiles:
+      - web
+    environment:
+      - NODE_ENV=production
+      - PORT=${PORT:-20128}
+      - DASHBOARD_PORT=${DASHBOARD_PORT:-${PORT:-20128}}
+      - API_PORT=${API_PORT:-20129}
+      - API_HOST=${API_HOST:-0.0.0.0}
+      - HOSTNAME=0.0.0.0
+      - DATA_DIR=/app/data
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+    expose:
+      - "20128"
+      - "20129"
+    networks:
+      - internal_network
+    volumes:
+      - omniroute-prod-data:/app/data
+    healthcheck:
+      test: ["CMD", "node", "healthcheck.mjs"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  # Profile: base (Lean official image without extra CLIs or Chromium)
+  omniroute-base:
+    image: diegosouzapw/omniroute:${OMNIROUTE_TAG:-latest}
+    container_name: omniroute-prod
+    restart: unless-stopped
+    profiles:
+      - base
+    environment:
+      - NODE_ENV=production
+      - PORT=${PORT:-20128}
+      - DASHBOARD_PORT=${DASHBOARD_PORT:-${PORT:-20128}}
+      - API_PORT=${API_PORT:-20129}
+      - API_HOST=${API_HOST:-0.0.0.0}
+      - HOSTNAME=0.0.0.0
+      - DATA_DIR=/app/data
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+    expose:
+      - "20128"
+      - "20129"
+    networks:
+      - internal_network
+    volumes:
+      - omniroute-prod-data:/app/data
+    healthcheck:
+      test: ["CMD", "node", "healthcheck.mjs"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
 networks:
   internal_network:
     driver: bridge
+
 volumes:
   caddy_data:
   caddy_config:
   omniroute-prod-data:
+  redis-data:
