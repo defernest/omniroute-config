@@ -12,7 +12,7 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - ./caddy_data:/data
       - ./caddy_config:/config
-    mem_limit: 100m
+    mem_limit: 64m
     networks:
       - internal_network
 
@@ -23,6 +23,7 @@ services:
     command: redis-server --save 60 1 --loglevel warning
     volumes:
       - redis-data:/data
+    mem_limit: 64m
     networks:
       - internal_network
     healthcheck:
@@ -47,9 +48,11 @@ services:
       - HOSTNAME=0.0.0.0
       - DATA_DIR=/app/data
       - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+      - NODE_OPTIONS=--max-old-space-size=384
     expose:
       - "20128"
       - "20129"
+    mem_limit: 450m
     networks:
       - internal_network
     volumes:
@@ -80,9 +83,11 @@ services:
       - HOSTNAME=0.0.0.0
       - DATA_DIR=/app/data
       - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+      - NODE_OPTIONS=--max-old-space-size=384
     expose:
       - "20128"
       - "20129"
+    mem_limit: 512m
     networks:
       - internal_network
     volumes:
@@ -110,9 +115,11 @@ services:
       - HOSTNAME=0.0.0.0
       - DATA_DIR=/app/data
       - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+      - NODE_OPTIONS=--max-old-space-size=384
     expose:
       - "20128"
       - "20129"
+    mem_limit: 450m
     networks:
       - internal_network
     volumes:

@@ -25,6 +25,16 @@ if [ "$(id -u)" -ne 0 ]; then
   fi
 fi
 
+# Ensure minimum SWAP file for low-RAM servers to prevent OOM panics
+if [ "$(free -m | awk '/Swap:/ {print $2}')" -eq 0 ]; then
+  echo "SWAP не обнаружен. Создание 2GB swapfile..."
+  $sudo_cmd fallocate -l 2G /swapfile || $sudo_cmd dd if=/dev/zero of=/swapfile bs=1M count=2048
+  $sudo_cmd chmod 600 /swapfile
+  $sudo_cmd mkswap /swapfile
+  $sudo_cmd swapon /swapfile
+  grep -q '/swapfile' /etc/fstab || echo '/swapfile swap swap defaults 0 0' | $sudo_cmd tee -a /etc/fstab >/dev/null
+fi
+
 # 1. Install prerequisites if missing
 echo "[1/4] Проверка зависимостей (curl, git, docker, docker compose)..."
 
