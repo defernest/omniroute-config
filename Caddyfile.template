@@ -3,7 +3,7 @@
     default_sni <public_server_ip>
 }
 
-http://:20130 {
+<public_server_ip>:20130, 127.0.0.1:20130 {
     reverse_proxy omniroute-prod:20128
 <tls_directive>
 
@@ -19,7 +19,7 @@ http://:20130 {
     }
 }
 
-http://:20131 {
+<public_server_ip>:20131, 127.0.0.1:20131 {
     reverse_proxy omniroute-prod:20129
 <tls_directive>
 
